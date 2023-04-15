@@ -30,7 +30,7 @@ def GenerateDepthMap(input_image):
     return output
 
 def GeneratePointcloud3D(input_image, depth_map):
-    width, height = input_image.shape[0], input_image.shape[1]
+    width, height = input_image.shape[1], input_image.shape[0]
     input_image = np.array(input_image)
 
     # process depth map
@@ -69,5 +69,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

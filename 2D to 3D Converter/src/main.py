@@ -39,15 +39,34 @@ def GeneratePointcloud3D(input_image, depth_map):
     # create RGBD image
     depth_3d = o3d.geometry.Image(depth_map)
     image_3d = o3d.geometry.Image(input_image)
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(image_3d, depth_3d, convert_rgb_to_density=False)
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(image_3d, depth_3d, convert_rgb_to_intensity=False)
 
     # camera settings 
     camera_intrinsic = o3d.camera.PinholeCameraIntrinsic()
     camera_intrinsic.set_intrinsic(width, height, 500, 500, width / 2, height / 2)
 
     # generate pointcloud 
-    pointcloud = o3d.geometry.PointCloud.creaet_from_rgbd_image(rgbd_image, camera_intrinsic)
-    o3d.visualization.draw_geometries([pointcloud])
+    pointcloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, camera_intrinsic)
+
+    return pointcloud
+
+def GenerateMesh3D(pointcloud):
+    # outliers removal
+    cl, index = pointcloud.remove_statistical_outlier(nb_neighbors=20, std_ratio=20.0)
+    pointcloud = pointcloud.select_by_index(index)
+
+    # get normals from pointcloud
+    pointcloud.estimate_normals()
+    pointcloud.orient_normals_to_align_with_direction()
+
+    # construct mesh
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pointcloud, depth=10, n_threads=1)[0]
+
+    # rotate mesh
+    rotation = mesh.get_rotation_matrix_from_xyz((np.pi, 0, 0))
+    mesh.rotate(rotation, center=(0, 0, 0))
+
+    return mesh
 
 def main():
     # input image path
@@ -63,9 +82,18 @@ def main():
     DisplayImage(depth_map, "plasma")
 
     # get Pointcloud
-    GeneratePointcloud3D(input_image, depth_map)
+    pointcloud = GeneratePointcloud3D(input_image, depth_map)
+
+    # get mesh
+    mesh = GenerateMesh3D(pointcloud)
+
+    # display pointcloud and mesh
+    o3d.visualizations.draw_geometries([pointcloud])
+    o3d.visualizations.draw_geometries([mesh], mesh_show_back_face=True)
 
     cv2.waitKey(0)
 
 if __name__ == "__main__":
     main()
+
+
